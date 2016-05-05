@@ -1,6 +1,7 @@
 hg pull
 hg up
 svn up
+git pull
 rm fly-server-benchmark
 gcc -static -O2 -o fly-server-benchmark mongoose-flylinkdc.cpp \
  mongoose.c  \
@@ -71,5 +72,4 @@ gcc -static -O2 -o fly-server-benchmark mongoose-flylinkdc.cpp \
 # HEAPPROFILE=/tmp/flynetheap ./fly-server-benchmark
 echo "Compile Fly-server-Benchmark Ok!"
 #valgrind --leak-check=full --leak-resolution=med --track-origins=yes ./fly-server-benchmark
-./fly-server-benchmark
-# -cache 512M
+./fly-server-benchmark -cache 1500M

@@ -31,3 +31,8 @@ Debug
 Release
 /*.opensdf
 /*.sdf
+
+fly-server-benchmark
+fly-server-db.sqlite
+fly-server-stats.sqlite
+media-db-compress.leveldb
