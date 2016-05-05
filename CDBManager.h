@@ -55,21 +55,6 @@ bool zlib_compress(const char* p_source, size_t p_len, std::vector<unsigned char
 
 sqlite_int64 get_tick_count();
 
-namespace MediaInfoLib
-{
-enum stream_t
-{
-	Stream_General,                 ///< StreamKind = General
-	Stream_Video,                   ///< StreamKind = Video
-	Stream_Audio,                   ///< StreamKind = Audio
-	Stream_Text,                    ///< StreamKind = Text
-	Stream_Chapters,                ///< StreamKind = Chapters
-	Stream_Image,                   ///< StreamKind = Image
-	Stream_Menu,                    ///< StreamKind = Menu
-	Stream_Max
-};
-}
-
 enum eTypeQuery
 {
 	FLY_POST_QUERY_UNKNOWN = 0,
@@ -282,10 +267,10 @@ class CFlyServerContext
 			char l_time_buf[32];
 			l_time_buf[0] = 0;
 			strftime(l_time_buf, sizeof(l_time_buf), "%Y-%m-%d-%H-%M-%S", gmtime(&p_now));
-			static int64_t l_count_uid = 0;
+			static int l_count_uid = 0;
 			char l_result_buf[256];
 			l_result_buf[0] = 0;
-			snprintf(l_result_buf, sizeof(l_result_buf), "%s/%s-%s-%lld-pid-%d-%lu.json",
+			snprintf(l_result_buf, sizeof(l_result_buf), "%s/%s-%s-%d-pid-%d-%lu.json",
 			         p_name_dir, p_ip, l_time_buf, ++l_count_uid, getpid(), pthread_self());
 			return l_result_buf;
 		}

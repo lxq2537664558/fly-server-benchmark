@@ -85,22 +85,22 @@ void CFlyServerContext::send_syslog() const
 		else if (m_count_get_base_media_counter != 0 || m_count_get_ext_media_counter != 0 || m_count_insert != 0)
 		{
 			snprintf(l_buf_counter, sizeof(l_buf_counter), "[cnt=%u,base=%u,ext=%u,new=%u]",
-			         m_count_get_only_counter,
-			         m_count_get_base_media_counter,
-			         m_count_get_ext_media_counter,
-			         m_count_insert);
+			         (unsigned)m_count_get_only_counter,
+			         (unsigned)m_count_get_base_media_counter,
+			         (unsigned)m_count_get_ext_media_counter,
+			         (unsigned)m_count_insert);
 		}
 			snprintf(l_log_buf, sizeof(l_log_buf), "[%s][%c][%u]%s[%s][%s][%u/%u->%u/%u][time db=%llu][%s]%s%s",
 			         m_fly_response.c_str(),
 			         get_compress_flag(),
-			         m_count_file_in_json,
+			         (unsigned)m_count_file_in_json,
 			         "<-",
 			         m_uri.c_str(),
 			         m_remote_ip.c_str(),
-			         get_real_query_size(),
-			         m_content_len,
-			         m_res_stat.size(),
-			         get_http_len(),
+			         (unsigned)get_real_query_size(),
+			         (unsigned)m_content_len,
+			         (unsigned)m_res_stat.size(),
+			         (unsigned)get_http_len(),
 			         get_delta_db(),
 			         m_user_agent.c_str(),
 			         l_buf_cache,
@@ -532,7 +532,7 @@ void CDBManager::process_get_query(const size_t p_index_result,
 				}
 				
 #ifndef _WIN32 // TODO debug
-				syslog(LOG_NOTICE, "get_ext_media_attr_array (Inform) = %llu", p_id_file);
+				syslog(LOG_NOTICE, "get_ext_media_attr_array (Inform) = %u", (unsigned)p_id_file);
 #else
 				std::cout << "get_ext_media_attr_array (Inform) p_id_file = " << p_id_file << std::endl;
 #endif

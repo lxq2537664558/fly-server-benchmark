@@ -36,3 +36,4 @@ fly-server-benchmark
 fly-server-db.sqlite
 fly-server-stats.sqlite
 media-db-compress.leveldb
+/ipch/mongoose-flylinkdc-b0558978/*.ipch
