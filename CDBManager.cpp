@@ -76,7 +76,7 @@ void CFlyServerContext::send_syslog() const
 		l_buf_counter[0] = 0;
 		if (m_count_cache)
 		{
-			snprintf(l_buf_cache, sizeof(l_buf_cache), "[cache=%u]", m_count_cache);
+			snprintf(l_buf_cache, sizeof(l_buf_cache), "[cache=%u]", (unsigned) m_count_cache);
 		}
 		if (m_count_get_only_counter == 0 && m_count_get_base_media_counter == 1 && m_count_get_ext_media_counter == 1)
 		{
