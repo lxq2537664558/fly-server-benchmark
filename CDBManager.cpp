@@ -138,40 +138,6 @@ static void* proc_sql_add_new_file(void* p_param)
 	return NULL;
 }
 //========================================================================================================
-static void translateDuration(const string& p_audio,
-                              string& p_column_audio,
-                              string& p_column_duration)  // ќтрезалка длительности из пол€ Audio
-{
-	p_column_duration.clear();
-	p_column_audio.clear();
-	if (!p_audio.empty())
-	{
-		const size_t l_pos = p_audio.find('|', 0);
-		if (l_pos != string::npos && l_pos)
-		{
-			if (p_audio.size() > 6 && p_audio[0] >= '1' && p_audio[0] <= '9' && // ѕроверим факт наличи€ в начале длительности
-			        (p_audio[1] == 'm' || p_audio[2] == 'n') || // "1mn XXs"
-			        (p_audio[1] == 's' || p_audio[2] == ' ') || // "1s XXXms"
-			        (p_audio[2] == 's' || p_audio[3] == ' ') || // "59s XXXms"
-			        (p_audio[2] == 'm' || p_audio[3] == 'n') ||   // "59mn XXs"
-			        (p_audio[1] == 'h') ||  // "1h XXmn"
-			        (p_audio[2] == 'h')     // "60h XXmn"
-			   )
-			{
-				p_column_duration = p_audio.substr(0, l_pos - 1);
-				if (l_pos + 2 < p_audio.length())
-					p_column_audio = p_audio.substr(l_pos + 2);
-			}
-			else
-			{
-				p_column_audio = p_audio; // ≈сли не распарсили - показывает что есть
-				std::cout << p_audio << std::endl;
-				//dcassert(0); // fix "1 076 Kbps,23mn 9s | MPEG Audio, 160 Kbps, 2 channels"
-			}
-		}
-	}
-}
-//========================================================================================================
 bool zlib_compress(const char* p_source, size_t p_len, std::vector<unsigned char>& p_compress, int& p_zlib_result, int p_level /*= 9*/)
 {
 	unsigned long l_dest_length = 0;
@@ -247,7 +213,6 @@ void CDBManager::pragma_executor(const char* p_pragma)
 	static const char* l_db_name[] =
 	{
 		"main"
-		, "fly_db_stats"
 	};
 	for (int i = 0; i < sizeof(l_db_name) / sizeof(l_db_name[0]); ++i)
 	{
@@ -309,54 +274,6 @@ static char fromHexEscape(const string &aString)
 	return static_cast<char>(res);
 }
 //========================================================================================================
-string CDBManager::encodeURI(const string& aString, bool reverse /* = false*/)
-{
-	// reference: rfc2396
-	string tmp = aString;
-	if (reverse)
-	{
-		// TODO idna: convert host name from punycode
-		string::size_type idx;
-		for (idx = 0; idx < tmp.length(); ++idx)
-		{
-			if (tmp.length() > idx + 2 && tmp[idx] == '%' && isxdigit(tmp[idx + 1]) && isxdigit(tmp[idx + 2]))
-			{
-				tmp[idx] = fromHexEscape(tmp.substr(idx + 1, 2));
-				tmp.erase(idx + 1, 2);
-			}
-			else   // reference: rfc1630, magnet-uri draft
-			{
-				if (tmp[idx] == '+')
-					tmp[idx] = ' ';
-			}
-		}
-	}
-	else
-	{
-		static const string disallowed = ";/?:@&=+$," // reserved
-		                                 "<>#%\" "    // delimiters
-		                                 "{}|\\^[]`"; // unwise
-		string::size_type idx;
-		for (idx = 0; idx < tmp.length(); ++idx)
-		{
-			if (tmp[idx] == ' ')
-			{
-				tmp[idx] = '+';
-			}
-			else
-			{
-				if (tmp[idx] <= 0x1F || tmp[idx] >= 0x7f || (disallowed.find_first_of(tmp[idx])) != string::npos)
-				{
-					tmp.replace(idx, 1, toHexEscape(tmp[idx]));
-					idx += 2;
-				}
-			}
-		}
-	}
-	return tmp;
-}
-//========================================================================================================
-//========================================================================================================
 static void trace_callback(void* p_udp, const char* p_sql)
 {
 //#ifndef _WIN32
@@ -417,8 +334,6 @@ void CDBManager::init()
 #endif
 #endif
 #endif
-		m_flySQLiteDB.executenonquery("attach database 'fly-server-stats.sqlite' as fly_db_stats");
-		
 		pragma_executor("page_size=4096");
 		{
 			pragma_executor("journal_mode=WAL");
@@ -562,7 +477,7 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 		}
 		Json::Value l_root;
 		Json::Reader reader(Json::Features::strictMode());
-		const std::string l_json = l_is_get ? p_flyserver_cntx.m_in_query : encodeURI(p_flyserver_cntx.m_in_query, true); // ≈сли get то декодинг не нужен - все буквы латиницей
+		const std::string l_json = p_flyserver_cntx.m_in_query;
 		const bool parsingSuccessful = reader.parse(l_json, l_root);
 		if (!parsingSuccessful)
 		{

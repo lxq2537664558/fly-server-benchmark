@@ -502,7 +502,6 @@ class CDBManager
 		
 		static void errorDB(const string& p_txt, bool p_is_exit_process = true);
 		bool safeAlter(const char* p_sql);
-		static string encodeURI(const string& aString, bool reverse = false);
 		
 #ifdef FLY_SERVER_USE_LEVELDB
 	private:
