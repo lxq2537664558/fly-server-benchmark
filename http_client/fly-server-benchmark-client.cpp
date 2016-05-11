@@ -295,16 +295,16 @@ int main(int argc, char *argv[]) {
 				}
 				else
 				{
-					std::cout << "Error boost::iostreams::mapped_file_source l_map_file: " << *itr << " GetLastError() = " << ::GetLastError() << std::endl;
+					std::cout << std::endl  << "Error boost::iostreams::mapped_file_source l_map_file: " << *itr << " GetLastError() = " << ::GetLastError() << std::endl;
 				}
 				if ((++j % 80) == 0)
 				{
-					std::cout << std::endl;
+					std::cout << std::endl << "[" << (j-1) << "]";
 				}
 			}
 		}
 	}
-	std::cout << "Tick count = " << GetTickCount() - l_tick_start << std::endl
+	std::cout << std::endl << "Tick count = " << GetTickCount() - l_tick_start << std::endl
 		<< "l_count_send = " << l_count_send << std::endl
 		<< "l_count_error = " << l_count_error << std::endl;
 
