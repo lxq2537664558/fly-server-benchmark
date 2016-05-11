@@ -134,6 +134,8 @@ static std::string translateError()
 	return "GetLastError() = " + toString(GetLastError());
 }
 //===========================================================================================
+static DWORD g_http_tick_count = 0;
+
 static bool postQuery(
 	const char* p_body,
 	int p_len_body,
@@ -147,6 +149,7 @@ static bool postQuery(
 	//string l_result_query;
 	//string l_log_string;
 	// Передача
+	const auto l_http_tick_start = GetTickCount();
 	CInternetHandle hSession(InternetOpen(_T("fly-server-benchmark"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0));
 	//InternetSetOption(hSession, INTERNET_OPTION_RECEIVE_TIMEOUT, &CFlyServerConfig::g_winet_receive_timeout, sizeof(CFlyServerConfig::g_winet_receive_timeout));
 	//InternetSetOption(hSession, INTERNET_OPTION_SEND_TIMEOUT, &CFlyServerConfig::g_winet_send_timeout, sizeof(CFlyServerConfig::g_winet_send_timeout));
@@ -219,6 +222,7 @@ static bool postQuery(
 		l_fly_server_log.step("InternetOpen error " + translateError());
 		p_is_error = true;
 	}
+	g_http_tick_count += GetTickCount() - l_http_tick_start;
 	return p_is_send;
 }
 
@@ -304,7 +308,8 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-	std::cout << std::endl << "Tick count = " << GetTickCount() - l_tick_start << std::endl
+	std::cout << std::endl << "Full tick count = " << GetTickCount() - l_tick_start << std::endl
+		<< "HHTP tick count = " << g_http_tick_count << std::endl
 		<< "l_count_send = " << l_count_send << std::endl
 		<< "l_count_error = " << l_count_error << std::endl;
 
