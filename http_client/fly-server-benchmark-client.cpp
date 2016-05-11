@@ -134,9 +134,11 @@ static std::string translateError()
 	return "GetLastError() = " + toString(GetLastError());
 }
 //===========================================================================================
-static DWORD g_http_tick_count = 0;
+const int COUNT_TEST = 10;
+static DWORD g_http_tick_count[COUNT_TEST];
 
 static bool postQuery(
+	int p_test_index,
 	const char* p_body,
 	int p_len_body,
 	bool& p_is_send,
@@ -145,10 +147,6 @@ static bool postQuery(
 	p_is_send = false;
 	p_is_error = false;
 	CFlyLog l_fly_server_log("log");
-	//string l_reason;
-	//string l_result_query;
-	//string l_log_string;
-	// Передача
 	const auto l_http_tick_start = GetTickCount();
 	CInternetHandle hSession(InternetOpen(_T("fly-server-benchmark"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0));
 	//InternetSetOption(hSession, INTERNET_OPTION_RECEIVE_TIMEOUT, &CFlyServerConfig::g_winet_receive_timeout, sizeof(CFlyServerConfig::g_winet_receive_timeout));
@@ -170,7 +168,6 @@ static bool postQuery(
 					p_len_body))
 				{
 					DWORD l_dwBytesAvailable = 0;
-					// TODO убрать std::vector<char> l_zlib_blob;
 					std::vector<unsigned char> l_MessageBody;
 					while (InternetQueryDataAvailable(hRequest, &l_dwBytesAvailable, 0, 0))
 					{
@@ -222,33 +219,21 @@ static bool postQuery(
 		l_fly_server_log.step("InternetOpen error " + translateError());
 		p_is_error = true;
 	}
-	g_http_tick_count += GetTickCount() - l_http_tick_start;
+	g_http_tick_count[p_test_index] += GetTickCount() - l_http_tick_start;
 	return p_is_send;
 }
 
 
 int main(int argc, char *argv[]) {
-	/*
-	 struct mg_mgr mgr;
-     mg_mgr_init(&mgr, NULL);
-	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--hexdump") == 0 && i + 1 < argc) {
-			mgr.hexdump_file = argv[++i];
-		}
-		else {
-			break;
-		}
-	}
-	*/
 
-	//printf("Usage: %s http://192.168.1.76:37015/fly-zget\n\n", argv[0]);
-
+	DWORD l_tick_start[COUNT_TEST] = { 0 };
+	for (int k = 0; k < COUNT_TEST; ++k)
+	{
 	boost::filesystem::directory_iterator end_itr;
-	const auto l_tick_start = GetTickCount();
 	unsigned l_count_error = 0;
 	unsigned l_count_send = 0;
 	unsigned j = 1;
-
+		l_tick_start[k] = GetTickCount();
 	for (
 		boost::filesystem::directory_iterator itr(".");
 		itr != end_itr;
@@ -281,7 +266,7 @@ int main(int argc, char *argv[]) {
 					const char* l_Mem = l_map_file.data();
 					bool l_is_send;
 					bool l_is_error;
-					postQuery(
+						postQuery(k,
 						l_Mem,
 						l_size,
 						l_is_send,
@@ -293,7 +278,10 @@ int main(int argc, char *argv[]) {
 					}
 					if (l_is_send)
 					{
+							if (j % 20 == 0)
+							{
 						std::cout << "+";
+							}
 						l_count_send++;
 					}
 				}
@@ -301,17 +289,30 @@ int main(int argc, char *argv[]) {
 				{
 					std::cout << std::endl  << "Error boost::iostreams::mapped_file_source l_map_file: " << *itr << " GetLastError() = " << ::GetLastError() << std::endl;
 				}
-				if ((++j % 80) == 0)
+					if ((++j % 1000) == 0)
 				{
 					std::cout << std::endl << "[" << (j-1) << "]";
 				}
 			}
 		}
 	}
-	std::cout << std::endl << "Full tick count = " << GetTickCount() - l_tick_start << std::endl
-		<< "HHTP tick count = " << g_http_tick_count << std::endl
-		<< "l_count_send = " << l_count_send << std::endl
-		<< "l_count_error = " << l_count_error << std::endl;
+		l_tick_start[k] = GetTickCount() - l_tick_start[k];
+		std::cout << std::endl << "Full tick count = " << l_tick_start[k] << std::endl
+			<< "HTTP tick count = " << g_http_tick_count[k]
+			<< " count_send = " << l_count_send
+			<< " count_error = " << l_count_error << std::endl;
+	}
+	std::cout << std::endl << "Full tick count = ";
+	for (int k = 0; k < COUNT_TEST; ++k)
+	{
+		std::cout << "\t" << l_tick_start[k];
+	}
+	std::cout << std::endl << "HTTP tick count = ";
+	for (int k = 0; k < COUNT_TEST; ++k)
+	{
+		std::cout << "\t" << g_http_tick_count[k];
+	}
+
 
 /*
 		//mg_mgr_init(&mgr, NULL);
