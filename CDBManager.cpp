@@ -80,7 +80,7 @@ void CFlyServerContext::send_syslog() const
 		}
 		if (m_count_get_only_counter == 0 && m_count_get_base_media_counter == 1 && m_count_get_ext_media_counter == 1)
 		{
-			snprintf(l_buf_counter, sizeof(l_buf_counter), "[get full Inform!]");
+			snprintf(l_buf_counter, sizeof(l_buf_counter), "%s","[get full Inform!]");
 		}
 		else if (m_count_get_base_media_counter != 0 || m_count_get_ext_media_counter != 0 || m_count_insert != 0)
 		{
@@ -118,7 +118,15 @@ void CFlyServerContext::send_syslog() const
 	}
 }
 //========================================================================================================
-static void* proc_sql_add_new_file(void* p_param)
+static void* thread_proc_sql_inc_counter_file(void* p_param)
+{
+	CDBManager* l_db = (CDBManager*)p_param;
+	Lock l(l_db->m_cs_sqlite);
+	l_db->flush_inc_counter_fly_file();
+	return NULL;
+}
+//========================================================================================================
+static void* thread_proc_sql_add_new_file(void* p_param)
 {
 	CFlyThreadUpdaterInfo* l_p = (CFlyThreadUpdaterInfo*)p_param;
 	size_t l_count_insert; // TODO - не юзается
@@ -130,17 +138,35 @@ static void* proc_sql_add_new_file(void* p_param)
 		l_p->m_db->process_sql_add_new_fileL(*l_p->m_file_only_counter, l_count_insert);
 	// Создадим новые файлы
 	l_p->m_db->internal_process_sql_add_new_fileL(l_count_insert);
-	// Инкрементируем счетчики доступа
-	if (l_p->m_id_array)
-	{
-		for (CFlyIDArray::const_iterator i = l_p->m_id_array->begin(); i != l_p->m_id_array->end(); ++i)
-		{
-			l_p->m_db->inc_counter_fly_file_bulkL(*i);
-		}
-	}
 	l_trans.commit();
 	delete l_p;
 	return NULL;
+}
+//========================================================================================================
+void CDBManager::flush_inc_counter_fly_file()
+	{
+	std::unordered_map<sqlite_int64, unsigned> l_count_query;
+		{
+		Lock l(m_cs_inc_counter_file);
+		l_count_query.swap(m_count_query_cache);
+		}
+	// Инкрементируем счетчики доступа
+	sqlite3_transaction l_trans(m_flySQLiteDB);
+	for (std::unordered_map<sqlite_int64, unsigned>::const_iterator i = l_count_query.begin(); i != l_count_query.end(); ++i)
+	{
+			if (!m_update_inc_count_query.get())
+				m_update_inc_count_query = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+					"update fly_file set count_query=count_query+?"
+#ifdef FLY_SERVER_USE_LAST_DATE_FIELD
+					",last_date=strftime('%s','now','localtime')"
+#endif
+					" where id=?"));
+			sqlite3_command* l_sql = m_update_inc_count_query.get();
+				l_sql->bind(1, i->second);
+				l_sql->bind(2, i->first);
+				l_sql->executenonquery();
+	}
+	l_trans.commit();
 }
 //========================================================================================================
 bool zlib_compress(const char* p_source, size_t p_len, std::vector<unsigned char>& p_compress, int& p_zlib_result, int p_level /*= 9*/)
@@ -476,6 +502,7 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 	try
 	{
 		const bool l_is_get = p_flyserver_cntx.m_query_type == FLY_POST_QUERY_GET;
+		const bool l_is_set = false;
 		if (!l_is_get)
 		{
 			std::cout << "Error find metod fly-* or fly-get / fly-set" << std::endl;
@@ -541,7 +568,6 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 		p_flyserver_cntx.m_count_file_in_json = l_array.size();
 		Json::Value  l_result_root; // Выходной JSON-пакет
 		Json::Value& l_result_arrays = l_result_root["array"];
-		std::auto_ptr<CFlyIDArray> l_id_file_array_ptr(new CFlyIDArray);
 		size_t l_index_result = 0;
 		for (int j = 0; j < p_flyserver_cntx.m_count_file_in_json; ++j)
 		{
@@ -612,7 +638,7 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 				// Если не нашли в кэше - обращаемся старым вариантом к базе данных
 				l_id_file = find_tth(l_tth,
 				                     l_size,
-				                     true,
+									 l_is_set,
 				                     l_result_counter,
 				                     l_is_get,
 				                     (l_is_only_counter == true) ? true : false,
@@ -627,13 +653,8 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 			// если будет возможность клиент нам докинет медиаинформацию для пополнения базы
 			if (l_is_get && l_id_file && l_count_query) // Если файл уже был сохраним его ID для массового апдейта в одной траназакции
 			{
-				const int lc_batch_limit = 50;
-				if (l_id_file_array_ptr->empty() || (l_id_file_array_ptr->back().size() % lc_batch_limit) == 0)
-				{
-					l_id_file_array_ptr->push_back(std::vector<sqlite_int64>());
-					l_id_file_array_ptr->back().reserve(lc_batch_limit);
-				}
-				l_id_file_array_ptr->back().push_back(l_id_file);
+				Lock l(m_cs_inc_counter_file);
+				m_count_query_cache[l_id_file]++;
 			}
             if (l_is_get)
 			{
@@ -672,19 +693,28 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 		// Признаком нового файла является m_fly_file_id = 0;
 		const bool l_is_new_file_only_counter = l_sql_result_array_only_counter->is_new_file();
 		const bool l_is_new_file = l_sql_result_array->is_new_file();
-		if (!l_id_file_array_ptr->empty() || l_is_new_file_only_counter || l_is_new_file)
+		if (l_is_new_file_only_counter || l_is_new_file)
 		{
-			CFlyThreadUpdaterInfo* l_thread_param = new CFlyThreadUpdaterInfo;
-			l_thread_param->m_db = this;
+			CFlyThreadUpdaterInfo* l_thread_param = new CFlyThreadUpdaterInfo(this);
 			if (l_is_new_file)
 				l_thread_param->m_file_full = l_sql_result_array.release();
 			if (l_is_new_file_only_counter)
 				l_thread_param->m_file_only_counter = l_sql_result_array_only_counter.release();
-			if (!l_id_file_array_ptr->empty())
-				l_thread_param->m_id_array = l_id_file_array_ptr.release();
-			if (!mg_start_thread(proc_sql_add_new_file, l_thread_param)) // TODO - поток обединить с proc_inc_counter_thread
+			if (!mg_start_thread(thread_proc_sql_add_new_file, l_thread_param)) // TODO - поток обединить с thread_proc_inc_counter_thread
 			{
 				delete l_thread_param;
+			}
+		}
+		{
+			static int g_count = 1;
+//#ifndef _DEBUG
+			if (++g_count % 100 == 0) // Сбрасываем счетчики на диск каждые 100 запросов
+//#endif
+			{
+				if (!mg_start_thread(thread_proc_sql_inc_counter_file, this))
+				{
+					//
+				}
 			}
 		}
 	}
@@ -696,6 +726,7 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 	return l_res_stat;
 }
 //========================================================================================================
+#if 0
 void CDBManager::inc_counter_fly_file_bulkL(const std::vector<sqlite_int64>& p_id_array)
 {
 	dcassert(p_id_array.size());
@@ -743,9 +774,10 @@ void CDBManager::inc_counter_fly_file_bulkL(const std::vector<sqlite_int64>& p_i
 			l_sql->executenonquery();
 		}
 #endif
-
 	}
 }
+#endif
+
 //========================================================================================================
 sqlite3_command* CDBManager::bind_sql_counter(const CFlyFileRecordMap& p_sql_array,
                                               bool p_is_get_base_mediainfo)
@@ -818,14 +850,6 @@ long long CDBManager::internal_insert_fly_file(const string& p_tth,sqlite_int64 
 //========================================================================================================
 void CDBManager::internal_process_sql_add_new_fileL(size_t& p_count_insert)
 {
-		prepare_insert_fly_file();
-		Lock l(m_cs_new_file);
-		for (std::set<CFlyFileKey>::const_iterator j = m_new_file_array.begin(); j != m_new_file_array.end(); ++j)
-		{
-			internal_insert_fly_file(j->m_tth, j->m_file_size);
-			++p_count_insert;
-		}
-		m_new_file_array.clear();
 }
 //========================================================================================================
 void CDBManager::process_sql_add_new_fileL(CFlyFileRecordMap& p_sql_array, size_t& p_count_insert)
@@ -836,10 +860,6 @@ void CDBManager::process_sql_add_new_fileL(CFlyFileRecordMap& p_sql_array, size_
 		if (i->second.m_fly_file_id == 0)
 		{
 			i->second.m_fly_file_id = internal_insert_fly_file(i->first.m_tth, i->first.m_file_size);
-			{
-				Lock l(m_cs_new_file);
-				m_new_file_array.erase(CFlyFileKey(i->first.m_tth, i->first.m_file_size));
-			}
 			i->second.m_count_query = 1;
 			i->second.m_count_download = 0;
 			i->second.m_count_antivirus = 0;
@@ -926,7 +946,7 @@ void CDBManager::prepare_and_find_all_tth(
 //========================================================================================================
 int64_t CDBManager::find_tth(const string& p_tth,
                              int64_t p_size,
-                             bool p_create,
+                             bool p_is_create,
                              Json::Value& p_result_stat,
                              bool p_fill_counter,
                              bool p_calc_count_mediainfo,
@@ -1007,14 +1027,11 @@ int64_t CDBManager::find_tth(const string& p_tth,
 #endif  // FLY_SERVER_USE_ALL_COUNTER
 			}
 		}
-		const bool l_is_first_tth = !l_id && p_create;
+		const bool l_is_first_tth = !l_id && p_is_create;
 		if (l_is_first_tth)
 		{
-			Lock l(m_cs_new_file);
-			//prepare_insert_fly_file();
-			m_new_file_array.insert(CFlyFileKey(p_tth, p_size));
-			//l_id = internal_insert_fly_file(p_tth, p_size);
-			++p_count_insert;
+			prepare_insert_fly_file();
+			l_id = internal_insert_fly_file(p_tth, p_size);
 		}
 		++p_count_query;
 		if (p_fill_counter)
@@ -1135,6 +1152,8 @@ void CDBManager::save_registry(const CFlyRegistryMap& p_values, int p_Segment)
 //========================================================================================================
 CDBManager::~CDBManager()
 {
+	std::cout << std::endl << "* fly-server CDBManager::~CDBManager" << std::endl;
+	flush_inc_counter_fly_file();
 	for (int j = 0; j < SQL_CACHE_LAST; ++j)
 	{
 		for (CFlyCacheSQLCommandInt::iterator i = m_sql_cache[j].begin(); i != m_sql_cache[j].end(); ++i)

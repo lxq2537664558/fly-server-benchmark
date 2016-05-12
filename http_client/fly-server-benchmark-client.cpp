@@ -154,7 +154,7 @@ static bool postQuery(
 	if (hSession)
 	{
 		DWORD dwFlags = 0; //INTERNET_FLAG_NO_COOKIES|INTERNET_FLAG_RELOAD|INTERNET_FLAG_NO_CACHE_WRITE|INTERNET_FLAG_PRAGMA_NOCACHE;
-		CInternetHandle hConnect(InternetConnectA(hSession, "192.168.1.76", 37015, NULL, NULL, INTERNET_SERVICE_HTTP, dwFlags, NULL));
+		CInternetHandle hConnect(InternetConnectA(hSession, "127.0.0.1", 37015, NULL, NULL, INTERNET_SERVICE_HTTP, dwFlags, NULL));
 		if (hConnect)
 		{
 			CInternetHandle hRequest(HttpOpenRequestA(hConnect, "POST", "fly-zget", NULL, NULL, NULL /*g_accept*/, dwFlags, NULL));

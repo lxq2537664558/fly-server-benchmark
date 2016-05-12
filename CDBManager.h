@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <set>
 #include <stdlib.h>
@@ -363,7 +364,6 @@ struct CFlyFileRecord
 	}
 };
 //================================================================================
-typedef std::vector< std::vector<sqlite_int64> > CFlyIDArray;
 class CFlyFileRecordMap : public std::map<CFlyFileKey , CFlyFileRecord>
 {
 	public:
@@ -377,24 +377,28 @@ class CFlyFileRecordMap : public std::map<CFlyFileKey , CFlyFileRecord>
 };
 //================================================================================
 class CDBManager;
-struct CFlyThreadUpdaterInfo
+struct CFlyThreadBase
+{
+	CDBManager*  m_db;
+	CFlyThreadBase(CDBManager* p_db):
+		m_db(p_db)
+	{
+	}
+};
+//================================================================================
+struct CFlyThreadUpdaterInfo : public CFlyThreadBase
 {
 	CFlyFileRecordMap* m_file_full;
 	CFlyFileRecordMap* m_file_only_counter;
-	CDBManager*  m_db;
-	CFlyIDArray* m_id_array;
-	CFlyThreadUpdaterInfo():
+	CFlyThreadUpdaterInfo(CDBManager* p_db): CFlyThreadBase(p_db),
 		m_file_full(NULL),
-		m_file_only_counter(NULL),
-		m_db(NULL),
-		m_id_array(NULL)
+		m_file_only_counter(NULL)
 	{
 	}
 	~CFlyThreadUpdaterInfo()
 	{
 		delete m_file_full;
 		delete m_file_only_counter;
-		delete m_id_array;
 	}
 };
 //================================================================================
@@ -430,8 +434,11 @@ class CDBManager
 		auto_ptr<sqlite3_command> m_insert_registry;
 		auto_ptr<sqlite3_command> m_delete_registry;
 
-		std::set<CFlyFileKey> m_new_file_array;
-		CriticalSection m_cs_new_file;
+		//std::set<CFlyFileKey> m_new_file_array;
+		//CriticalSection m_cs_new_file;
+
+		std::unordered_map<sqlite_int64, unsigned> m_count_query_cache;
+		CriticalSection m_cs_inc_counter_file;
 
 #ifndef FLY_SERVER_USE_ARRAY_UPDATE
 		auto_ptr<sqlite3_command> m_update_inc_count_query;
@@ -458,7 +465,7 @@ class CDBManager
 		// 2. Кэш для массового апдейта счетчика count_query
 		
 	public:
-		void inc_counter_fly_file_bulkL(const std::vector<sqlite_int64>& p_id_array);
+		void flush_inc_counter_fly_file();
 	private:
 	
 	
