@@ -630,7 +630,7 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 				const int lc_batch_limit = 50;
 				if (l_id_file_array_ptr->empty() || (l_id_file_array_ptr->back().size() % lc_batch_limit) == 0)
 				{
-					l_id_file_array_ptr->push_back(std::vector<int64_t>());
+					l_id_file_array_ptr->push_back(std::vector<sqlite_int64>());
 					l_id_file_array_ptr->back().reserve(lc_batch_limit);
 				}
 				l_id_file_array_ptr->back().push_back(l_id_file);
@@ -820,7 +820,7 @@ void CDBManager::internal_process_sql_add_new_fileL(size_t& p_count_insert)
 {
 		prepare_insert_fly_file();
 		Lock l(m_cs_new_file);
-		for (std::set<CFlyFileKey>::const_iterator j = m_new_file_array.cbegin(); j != m_new_file_array.cend(); ++j)
+		for (std::set<CFlyFileKey>::const_iterator j = m_new_file_array.begin(); j != m_new_file_array.end(); ++j)
 		{
 			internal_insert_fly_file(j->m_tth, j->m_file_size);
 			++p_count_insert;
