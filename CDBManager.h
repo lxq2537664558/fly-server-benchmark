@@ -363,7 +363,7 @@ struct CFlyFileRecord
 	}
 };
 //================================================================================
-typedef std::vector< std::vector<int64_t> > CFlyIDArray;
+typedef std::vector< std::vector<sqlite_int64> > CFlyIDArray;
 class CFlyFileRecordMap : public std::map<CFlyFileKey , CFlyFileRecord>
 {
 	public:
@@ -458,7 +458,7 @@ class CDBManager
 		// 2. Кэш для массового апдейта счетчика count_query
 		
 	public:
-		void inc_counter_fly_file_bulkL(const std::vector<int64_t>& p_id_array);
+		void inc_counter_fly_file_bulkL(const std::vector<sqlite_int64>& p_id_array);
 	private:
 	
 	
