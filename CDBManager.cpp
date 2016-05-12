@@ -121,7 +121,7 @@ void CFlyServerContext::send_syslog() const
 static void* thread_proc_sql_inc_counter_file(void* p_param)
 {
 	CDBManager* l_db = (CDBManager*)p_param;
-	Lock l(l_db->m_cs_sqlite);
+	//Lock l(l_db->m_cs_sqlite);
 	l_db->flush_inc_counter_fly_file();
 	return NULL;
 }
@@ -130,7 +130,7 @@ static void* thread_proc_sql_add_new_file(void* p_param)
 {
 	CFlyThreadUpdaterInfo* l_p = (CFlyThreadUpdaterInfo*)p_param;
 	size_t l_count_insert; // TODO - не юзается
-	Lock l(l_p->m_db->m_cs_sqlite);
+	//Lock l(l_p->m_db->m_cs_sqlite);
 	sqlite3_transaction l_trans(l_p->m_db->m_flySQLiteDB);
 	if (l_p->m_file_full)
 		l_p->m_db->process_sql_add_new_fileL(*l_p->m_file_full, l_count_insert);
@@ -847,6 +847,12 @@ long long CDBManager::internal_insert_fly_file(const string& p_tth,sqlite_int64 
 	}
 	return m_flySQLiteDB.insertid();
 }
+
+//Full tick count = 1511760 196812  208017  213608  200152  208706  226809  231721  239069  227141
+//HTTP tick count = 1507841 194624  205859  211239  197882  206410  224504  229526  236944  224900
+
+//Full tick count = 1537845 181152  178863  195176  189672  196055  194665  208586  220501  225714
+//HTTP tick count = 1534167 179253  176991  193332  187805  194155  192884  206652  218588  223833
 //========================================================================================================
 void CDBManager::internal_process_sql_add_new_fileL(size_t& p_count_insert)
 {
@@ -878,7 +884,7 @@ void CDBManager::process_sql_counter(CFlyFileRecordMap& p_sql_array,
 	const size_t l_size_array = p_sql_array.size();
 	if (l_size_array > 0)
 	{
-		Lock l(m_cs_sqlite);
+		//Lock l(m_cs_sqlite);
 		sqlite3_command* l_sql_command = bind_sql_counter(p_sql_array, p_is_get_base_mediainfo);
 		// Шаг 2. Возвращаем результат в виде курсора и сохраняем обратно в мапе
 		sqlite3_reader l_q = l_sql_command->executereader();
@@ -958,7 +964,7 @@ int64_t CDBManager::find_tth(const string& p_tth,
 	string l_marker_crash;
 	try
 	{
-		Lock l(m_cs_sqlite);
+		//Lock l(m_cs_sqlite);
 		sqlite3_command* l_sql = 0;
 		if (p_calc_count_mediainfo == false)
 		{
@@ -1077,7 +1083,7 @@ void CDBManager::load_registry(TStringList& p_values, int p_Segment)
 {
 	p_values.clear();
 	CFlyRegistryMap l_values;
-	Lock l(m_cs_sqlite);
+	//Lock l(m_cs_sqlite);
 	load_registry(l_values, p_Segment);
 	p_values.reserve(l_values.size());
 	for (CFlyRegistryMap::const_iterator k = l_values.begin(); k != l_values.end(); ++k)
@@ -1087,7 +1093,7 @@ void CDBManager::load_registry(TStringList& p_values, int p_Segment)
 void CDBManager::save_registry(const TStringList& p_values, int p_Segment)
 {
 	CFlyRegistryMap l_values;
-	Lock l(m_cs_sqlite);
+	//Lock l(m_cs_sqlite);
 	for (TStringList::const_iterator i = p_values.begin(); i != p_values.end(); ++i)
 		l_values.insert(CFlyRegistryMap::value_type(
 		                    *i,
@@ -1097,7 +1103,7 @@ void CDBManager::save_registry(const TStringList& p_values, int p_Segment)
 //========================================================================================================
 void CDBManager::load_registry(CFlyRegistryMap& p_values, int p_Segment)
 {
-	Lock l(m_cs_sqlite);
+	//Lock l(m_cs_sqlite);
 	try
 	{
 		if (!m_get_registry.get())
@@ -1119,7 +1125,7 @@ void CDBManager::load_registry(CFlyRegistryMap& p_values, int p_Segment)
 void CDBManager::save_registry(const CFlyRegistryMap& p_values, int p_Segment)
 {
 	const sqlite_int64 l_tick = get_tick_count();
-	Lock l(m_cs_sqlite);
+	//Lock l(m_cs_sqlite);
 	try
 	{
 		sqlite3_transaction l_trans(m_flySQLiteDB);
