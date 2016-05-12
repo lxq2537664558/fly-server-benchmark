@@ -413,11 +413,14 @@ class CDBManager
 		void save_registry(const TStringList& p_values, int p_Segment);
 		
 		void init();
+
+		sqlite3_connection m_flySQLiteDB;
+
 	private:
 		bool is_table_exists(const string& p_table_name);
 		void pragma_executor(const char* p_pragma);
 		
-		sqlite3_connection m_flySQLiteDB;
+
 		auto_ptr<sqlite3_command> m_find_tth;
 		auto_ptr<sqlite3_command> m_find_tth_and_count_media;
 		auto_ptr<sqlite3_command> m_insert_fly_file;
@@ -426,6 +429,13 @@ class CDBManager
 		auto_ptr<sqlite3_command> m_get_registry;
 		auto_ptr<sqlite3_command> m_insert_registry;
 		auto_ptr<sqlite3_command> m_delete_registry;
+
+		std::set<CFlyFileKey> m_new_file_array;
+		CriticalSection m_cs_new_file;
+
+#ifndef FLY_SERVER_USE_ARRAY_UPDATE
+		auto_ptr<sqlite3_command> m_update_inc_count_query;
+#endif
 
 		void prepare_insert_fly_file();
 		long long internal_insert_fly_file(const string& p_tth, sqlite_int64 p_file_size);
@@ -436,7 +446,9 @@ class CDBManager
 		{
 			SQL_CACHE_SELECT_COUNT          = 0,
 			SQL_CACHE_SELECT_COUNT_MEDIA    = 1,
+#ifdef FLY_SERVER_USE_ARRAY_UPDATE
 			SQL_CACHE_UPDATE_COUNT          = 2,
+#endif
 			SQL_CACHE_LAST
 		};
 		
@@ -482,6 +494,7 @@ class CDBManager
 	public:
 		void process_sql_add_new_fileL(CFlyFileRecordMap& p_sql_array,
 		                               size_t& p_count_insert);
+		void internal_process_sql_add_new_fileL(size_t& p_count_insert);
 	private:
 		sqlite3_command* bind_sql_counter(const CFlyFileRecordMap& p_sql_array,
 		                                  bool p_is_get_base_mediainfo);

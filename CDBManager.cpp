@@ -696,6 +696,7 @@ void CDBManager::inc_counter_fly_file_bulkL(const std::vector<int64_t>& p_id_arr
 	dcassert(p_id_array.size());
 	if (p_id_array.size())
 	{
+#ifdef FLY_SERVER_USE_ARRAY_UPDATE
 		sqlite3_command* l_sql_command = NULL;
 		CFlyCacheSQLCommandInt& l_pool_sql = m_sql_cache[SQL_CACHE_UPDATE_COUNT];
 		CFlyCacheSQLCommandInt::const_iterator l_sql_it = l_pool_sql.find(p_id_array.size());
@@ -721,6 +722,23 @@ void CDBManager::inc_counter_fly_file_bulkL(const std::vector<int64_t>& p_id_arr
 			l_sql_command->bind(i + 1, (long long int)p_id_array[i]);
 		}
 		l_sql_command->executenonquery();
+#else
+		
+			if (!m_update_inc_count_query.get())
+				m_update_inc_count_query = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+					"update fly_file set count_query=count_query+1"
+#ifdef FLY_SERVER_USE_LAST_DATE_FIELD
+					",last_date=strftime('%s','now','localtime')"
+#endif
+					" where id=?"));
+		sqlite3_command* l_sql = m_update_inc_count_query.get();
+		for (unsigned i = 0; i < p_id_array.size(); ++i)
+		{
+			l_sql->bind(1,p_id_array[i]);
+			l_sql->executenonquery();
+		}
+#endif
+
 	}
 }
 //========================================================================================================
@@ -793,6 +811,18 @@ long long CDBManager::internal_insert_fly_file(const string& p_tth,sqlite_int64 
 	return m_flySQLiteDB.insertid();
 }
 //========================================================================================================
+void CDBManager::internal_process_sql_add_new_fileL(size_t& p_count_insert)
+{
+		prepare_insert_fly_file();
+		Lock l(m_cs_new_file);
+		for (std::set<CFlyFileKey>::const_iterator j = m_new_file_array.cbegin(); j != m_new_file_array.cend(); ++j)
+		{
+			internal_insert_fly_file(j->m_tth, j->m_file_size);
+			++p_count_insert;
+		}
+		m_new_file_array.clear();
+}
+//========================================================================================================
 void CDBManager::process_sql_add_new_fileL(CFlyFileRecordMap& p_sql_array, size_t& p_count_insert)
 {
 	prepare_insert_fly_file();
@@ -801,6 +831,10 @@ void CDBManager::process_sql_add_new_fileL(CFlyFileRecordMap& p_sql_array, size_
 		if (i->second.m_fly_file_id == 0)
 		{
 			i->second.m_fly_file_id = internal_insert_fly_file(i->first.m_tth, i->first.m_file_size);
+			{
+				Lock l(m_cs_new_file);
+				m_new_file_array.erase(CFlyFileKey(i->first.m_tth, i->first.m_file_size));
+			}
 			i->second.m_count_query = 1;
 			i->second.m_count_download = 0;
 			i->second.m_count_antivirus = 0;
@@ -808,6 +842,7 @@ void CDBManager::process_sql_add_new_fileL(CFlyFileRecordMap& p_sql_array, size_
 			++p_count_insert;
 		}
 	}
+	internal_process_sql_add_new_fileL(p_count_insert);
 }
 //========================================================================================================
 void CDBManager::process_sql_counter(CFlyFileRecordMap& p_sql_array,
@@ -970,8 +1005,10 @@ int64_t CDBManager::find_tth(const string& p_tth,
 		const bool l_is_first_tth = !l_id && p_create;
 		if (l_is_first_tth)
 		{
-			prepare_insert_fly_file();
-			l_id = internal_insert_fly_file(p_tth, p_size);
+			Lock l(m_cs_new_file);
+			//prepare_insert_fly_file();
+			m_new_file_array.insert(CFlyFileKey(p_tth, p_size));
+			//l_id = internal_insert_fly_file(p_tth, p_size);
 			++p_count_insert;
 		}
 		++p_count_query;
