@@ -26,7 +26,7 @@ using sqlite3x::sqlite3_reader;
 
 bool g_DisableSQLiteWAL    = false;
 //==========================================================================
-bool g_setup_syslog_disable        = false;
+bool g_setup_syslog_disable  = true;
 //==========================================================================
 CFlyLogThreadInfoArray* CFlyServerContext::g_log_array = NULL;
 //==========================================================================
@@ -369,6 +369,7 @@ void CDBManager::init()
 //#define FLY_SERVER_SQL_SAFE
 #ifdef FLY_SERVER_SQL_SAFE
 			pragma_executor("journal_mode=WAL");
+		pragma_executor("secure_delete=OFF"); // http://www.sqlite.org/pragma.html#pragma_secure_delete
 		pragma_executor("temp_store=MEMORY");
 		//pragma_executor("count_changes=OFF");
 //		m_flySQLiteDB.executenonquery("PRAGMA auto_vacuum=FULL");
@@ -382,7 +383,6 @@ void CDBManager::init()
 		
 		m_flySQLiteDB.executenonquery("PRAGMA cache_size=" + l_pragma_cache);
 		
-	
 		m_flySQLiteDB.executenonquery("CREATE TABLE IF NOT EXISTS fly_file ("
 		                              "id             integer primary key AUTOINCREMENT not null,"
 		                              "tth            char(39) not null,"
