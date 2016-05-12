@@ -335,7 +335,7 @@ void CDBManager::init()
 	try
 	{
 #ifdef FLY_SERVER_USE_LEVELDB
-//    m_flyLevelDB = auto_ptr<CFlyLevelDB>(new CFlyLevelDB(leveldb::kNoCompression));
+//    m_flyLevelDB = unique_ptr<CFlyLevelDB>(new CFlyLevelDB(leveldb::kNoCompression));
 //		m_flyLevelDB->open_level_db("media-db.leveldb");
 
 		m_flyLevelDBCompress = unique_ptr<CFlyLevelDB>(new CFlyLevelDB(leveldb::kSnappyCompression));
@@ -550,8 +550,8 @@ std::string CDBManager::store_media_info(CFlyServerContext& p_flyserver_cntx)
 		}
 		// Обходим массив
 		const Json::Value& l_array = l_root["array"];
-		std::auto_ptr<CFlyFileRecordMap> l_sql_result_array(new CFlyFileRecordMap);
-		std::auto_ptr<CFlyFileRecordMap> l_sql_result_array_only_counter(new CFlyFileRecordMap);
+		std::unique_ptr<CFlyFileRecordMap> l_sql_result_array(new CFlyFileRecordMap);
+		std::unique_ptr<CFlyFileRecordMap> l_sql_result_array_only_counter(new CFlyFileRecordMap);
 		prepare_and_find_all_tth(
 		    l_root,
 		    l_array,
