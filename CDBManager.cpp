@@ -366,17 +366,21 @@ void CDBManager::init()
 #endif
 #endif
 		pragma_executor("page_size=4096");
-		{
+//#define FLY_SERVER_SQL_SAFE
+#ifdef FLY_SERVER_SQL_SAFE
 			pragma_executor("journal_mode=WAL");
-		}
 		pragma_executor("temp_store=MEMORY");
-		pragma_executor("count_changes=OFF");
+		//pragma_executor("count_changes=OFF");
+//		m_flySQLiteDB.executenonquery("PRAGMA auto_vacuum=FULL");
+#else
+		pragma_executor("journal_mode=MEMORY");
+		pragma_executor("synchronous=OFF");
+#endif
 		
 		extern int  g_sqlite_cache_db;
 		const string l_pragma_cache =  toString(g_sqlite_cache_db * 1024 * 1024 / 4096);
 		
 		m_flySQLiteDB.executenonquery("PRAGMA cache_size=" + l_pragma_cache);
-		m_flySQLiteDB.executenonquery("PRAGMA auto_vacuum=FULL");
 		
 	
 		m_flySQLiteDB.executenonquery("CREATE TABLE IF NOT EXISTS fly_file ("
