@@ -69,7 +69,7 @@ enum eTypeQuery
 #define _atoi64 atoll
 #endif
 
-using std::auto_ptr;
+using std::unique_ptr;
 using sqlite3x::sqlite3_command;
 using sqlite3x::sqlite3_connection;
 //==========================================================================
@@ -425,14 +425,14 @@ class CDBManager
 		void pragma_executor(const char* p_pragma);
 		
 
-		auto_ptr<sqlite3_command> m_find_tth;
-		auto_ptr<sqlite3_command> m_find_tth_and_count_media;
-		auto_ptr<sqlite3_command> m_insert_fly_file;
-		auto_ptr<sqlite3_command> m_insert_or_replace_fly_file;
-		auto_ptr<sqlite3_command> m_select_fly_file;
-		auto_ptr<sqlite3_command> m_get_registry;
-		auto_ptr<sqlite3_command> m_insert_registry;
-		auto_ptr<sqlite3_command> m_delete_registry;
+		unique_ptr<sqlite3_command> m_find_tth;
+		unique_ptr<sqlite3_command> m_find_tth_and_count_media;
+		unique_ptr<sqlite3_command> m_insert_fly_file;
+		unique_ptr<sqlite3_command> m_insert_or_replace_fly_file;
+		unique_ptr<sqlite3_command> m_select_fly_file;
+		unique_ptr<sqlite3_command> m_get_registry;
+		unique_ptr<sqlite3_command> m_insert_registry;
+		unique_ptr<sqlite3_command> m_delete_registry;
 
 		//std::set<CFlyFileKey> m_new_file_array;
 		//CriticalSection m_cs_new_file;
@@ -441,7 +441,7 @@ class CDBManager
 		CriticalSection m_cs_inc_counter_file;
 
 #ifndef FLY_SERVER_USE_ARRAY_UPDATE
-		auto_ptr<sqlite3_command> m_update_inc_count_query;
+		unique_ptr<sqlite3_command> m_update_inc_count_query;
 #endif
 
 		void prepare_insert_fly_file();
@@ -554,7 +554,7 @@ class CDBManager
 						return false;
 				}
 		};
-		auto_ptr<CFlyLevelDB> m_flyLevelDBCompress;
+		unique_ptr<CFlyLevelDB> m_flyLevelDBCompress;
 		//
 #endif // FLY_SERVER_USE_LEVELDB
 		

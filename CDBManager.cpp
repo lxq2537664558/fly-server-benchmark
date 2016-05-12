@@ -155,7 +155,7 @@ void CDBManager::flush_inc_counter_fly_file()
 	for (std::unordered_map<sqlite_int64, unsigned>::const_iterator i = l_count_query.begin(); i != l_count_query.end(); ++i)
 	{
 			if (!m_update_inc_count_query.get())
-				m_update_inc_count_query = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+				m_update_inc_count_query = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 					"update fly_file set count_query=count_query+?"
 #ifdef FLY_SERVER_USE_LAST_DATE_FIELD
 					",last_date=strftime('%s','now','localtime')"
@@ -338,7 +338,7 @@ void CDBManager::init()
 //    m_flyLevelDB = auto_ptr<CFlyLevelDB>(new CFlyLevelDB(leveldb::kNoCompression));
 //		m_flyLevelDB->open_level_db("media-db.leveldb");
 
-		m_flyLevelDBCompress = auto_ptr<CFlyLevelDB>(new CFlyLevelDB(leveldb::kSnappyCompression));
+		m_flyLevelDBCompress = unique_ptr<CFlyLevelDB>(new CFlyLevelDB(leveldb::kSnappyCompression));
 		m_flyLevelDBCompress->open_level_db("media-db-compress.leveldb");
 		
 #endif
@@ -761,7 +761,7 @@ void CDBManager::inc_counter_fly_file_bulkL(const std::vector<sqlite_int64>& p_i
 #else
 		
 			if (!m_update_inc_count_query.get())
-				m_update_inc_count_query = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+				m_update_inc_count_query = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 					"update fly_file set count_query=count_query+1"
 #ifdef FLY_SERVER_USE_LAST_DATE_FIELD
 					",last_date=strftime('%s','now','localtime')"
@@ -819,12 +819,12 @@ void CDBManager::prepare_insert_fly_file()
 {
 	if (!m_insert_fly_file.get())
 	{
-		m_insert_fly_file = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+		m_insert_fly_file = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 			"insert into fly_file (tth,file_size,first_date) values(?,?,strftime('%s','now','localtime'))"));
 	}
 	if (!m_insert_or_replace_fly_file.get())
 	{		
-		m_insert_or_replace_fly_file = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+		m_insert_or_replace_fly_file = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 			"insert or replace into fly_file (tth,file_size,first_date) values(?,?,strftime('%s','now','localtime'))")); 
 	}
 }
@@ -963,7 +963,7 @@ int64_t CDBManager::find_tth(const string& p_tth,
 		if (p_calc_count_mediainfo == false)
 		{
 			if (!m_find_tth.get())
-				m_find_tth = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+				m_find_tth = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 				                                                           "select id,count_query,count_download,count_antivirus "
 #ifdef FLY_SERVER_USE_ALL_COUNTER
 				                                                           ",count_plus,count_minus,count_fake,count_upload,first_date"
@@ -974,7 +974,7 @@ int64_t CDBManager::find_tth(const string& p_tth,
 		else
 		{
 			if (!m_find_tth_and_count_media.get())
-				m_find_tth_and_count_media = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+				m_find_tth_and_count_media = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 				                                                                           "select id,count_query,count_download,count_antivirus,count_media"
 #ifdef FLY_SERVER_USE_ALL_COUNTER
 				                                                                           ",count_plus,count_minus,count_fake,count_upload,first_date"
@@ -1101,7 +1101,7 @@ void CDBManager::load_registry(CFlyRegistryMap& p_values, int p_Segment)
 	try
 	{
 		if (!m_get_registry.get())
-			m_get_registry = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+			m_get_registry = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 			                                                               "select key,val_str,val_number from fly_registry where segment=?"));
 		m_get_registry->bind(1, p_Segment);
 		sqlite3_reader l_q = m_get_registry.get()->executereader();
@@ -1124,7 +1124,7 @@ void CDBManager::save_registry(const CFlyRegistryMap& p_values, int p_Segment)
 	{
 		sqlite3_transaction l_trans(m_flySQLiteDB);
 		if (!m_insert_registry.get())
-			m_insert_registry = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+			m_insert_registry = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 			                                                                  "insert or replace into fly_registry (segment,key,val_str,val_number,tick_count) values(?,?,?,?,?)"));
 		sqlite3_command* l_sql = m_insert_registry.get();
 		for (CFlyRegistryMap::const_iterator k = p_values.begin(); k != p_values.end(); ++k)
@@ -1137,7 +1137,7 @@ void CDBManager::save_registry(const CFlyRegistryMap& p_values, int p_Segment)
 			l_sql->executenonquery();
 		}
 		if (!m_delete_registry.get())
-			m_delete_registry = auto_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
+			m_delete_registry = unique_ptr<sqlite3_command>(new sqlite3_command(m_flySQLiteDB,
 			                                                                  "delete from fly_registry where segment=? and tick_count<>?"));
 		m_delete_registry->bind(1, p_Segment);
 		m_delete_registry->bind(2, l_tick);
